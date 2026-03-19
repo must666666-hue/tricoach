@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRI COACH AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root {
+    --bg: #0a0c0f; --surface: #12161c; --surface2: #1a2030; --border: #2a3040;
+    --accent: #00e5ff; --accent2: #ff6b35; --accent3: #7fff7f;
+    --text: #e8edf5; --muted: #6b7a90; --swim: #00b4d8; --bike: #ff6b35; --run: #7fff7f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* AUTH */
+  #authScreen { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 40px 36px; width: 360px; }
+  .auth-logo { font-family: 'Bebas Neue', cursive; font-size: 32px; letter-spacing: 5px; color: var(--accent); margin-bottom: 4px; }
+  .auth-logo span { color: var(--accent2); }
+  .auth-sub { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 32px; }
+  .auth-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 4px; margin-bottom: 24px; }
+  .auth-tab { flex: 1; background: none; border: none; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; padding: 7px; border-radius: 5px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .auth-tab.active { background: var(--accent); color: var(--bg); font-weight: 700; }
+  .auth-field { margin-bottom: 14px; }
+  .auth-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .auth-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 14px; padding: 10px 12px; outline: none; transition: border-color 0.2s; }
+  .auth-field input:focus { border-color: var(--accent); }
+  .auth-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 8px; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 1px; padding: 12px; cursor: pointer; transition: opacity 0.2s; text-transform: uppercase; margin-top: 8px; }
+  .auth-btn:hover { opacity: 0.85; }
+  .auth-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .auth-msg { border-radius: 7px; font-size: 12px; padding: 10px 12px; margin-top: 12px; display: none; }
+  .auth-msg.error { background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.3); color: #ff8080; }
+  .auth-msg.info { background: rgba(127,255,127,0.1); border: 1px solid rgba(127,255,127,0.3); color: var(--accent3); }
+
+  /* APP */
+  #appScreen { display: none; flex-direction: column; flex: 1; }
+
+  /* HEADER */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); background: rgba(10,12,15,0.95); position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'Bebas Neue', cursive; font-size: 26px; letter-spacing: 4px; color: var(--accent); }
+  .logo span { color: var(--accent2); }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .user-email { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); }
+  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 10px; padding: 5px 10px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px; }
+  .logout-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .nav-tabs { display: flex; gap: 4px; background: var(--surface); border-radius: 10px; padding: 4px; }
+  .nav-tab { background: none; border: none; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; padding: 7px 16px; border-radius: 7px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .nav-tab.active { background: var(--accent); color: var(--bg); font-weight: 700; }
+  .nav-tab:hover:not(.active) { color: var(--text); }
+
+  /* MAIN */
+  main { flex: 1; display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 61px); }
+
+  /* SIDEBAR */
+  aside { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .profile-section { padding: 20px; border-bottom: 1px solid var(--border); }
+  .section-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 14px; }
+  .profile-field { margin-bottom: 12px; }
+  .profile-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; letter-spacing: 0.5px; }
+  .profile-field input, .profile-field select, .profile-field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 13px; padding: 8px 10px; transition: border-color 0.2s; outline: none; }
+  .profile-field input:focus, .profile-field select:focus, .profile-field textarea:focus { border-color: var(--accent); }
+  .profile-field select option { background: var(--surface2); }
+  .profile-field textarea { resize: vertical; min-height: 60px; }
+  .save-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 7px; font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 1px; padding: 10px; cursor: pointer; transition: opacity 0.2s; text-transform: uppercase; margin-top: 4px; }
+  .save-btn:hover { opacity: 0.85; }
+
+  /* CHAT */
+  .chat-container { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .chat-header { padding: 14px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .ai-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3); box-shadow: 0 0 8px var(--accent3); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .chat-title { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .quick-prompts { display: flex; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .quick-prompts::-webkit-scrollbar { display: none; }
+  .quick-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 12px; padding: 6px 14px; cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
+  .quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .message { display: flex; gap: 12px; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .message.user { flex-direction: row-reverse; }
+  .avatar { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', cursive; font-size: 14px; flex-shrink: 0; }
+  .avatar.ai { background: linear-gradient(135deg, var(--accent), #0077aa); color: var(--bg); letter-spacing: 1px; }
+  .avatar.user { background: linear-gradient(135deg, var(--accent2), #cc4400); color: white; }
+  .bubble { max-width: 70%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.7; }
+  .message.ai .bubble { background: var(--surface2); border: 1px solid var(--border); border-top-left-radius: 2px; }
+  .message.user .bubble { background: var(--accent2); color: white; border-top-right-radius: 2px; }
+  .bubble strong { color: var(--accent); font-weight: 700; }
+  .message.user .bubble strong { color: white; }
+  .bubble ul { padding-left: 18px; margin: 6px 0; }
+  .bubble li { margin: 3px 0; }
+  .bubble h3 { font-size: 14px; margin: 10px 0 4px; color: var(--accent); }
+  .message.user .bubble h3 { color: white; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: typing 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
+  .input-area { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end; }
+  #messageInput { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 14px; padding: 10px 14px; resize: none; outline: none; min-height: 44px; max-height: 120px; transition: border-color 0.2s; line-height: 1.5; }
+  #messageInput:focus { border-color: var(--accent); }
+  #messageInput::placeholder { color: var(--muted); }
+  .send-btn { width: 44px; height: 44px; background: var(--accent); border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s, transform 0.1s; flex-shrink: 0; }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:active { transform: scale(0.96); }
+  .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .send-btn svg { width: 18px; height: 18px; fill: var(--bg); }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .welcome-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 8px; }
+  .welcome-title { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 3px; color: var(--accent); margin-bottom: 8px; }
+  .welcome-text { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .tag { display: inline-block; font-family: 'Space Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 4px; margin: 2px; letter-spacing: 0.5px; }
+  .tag.swim { background: rgba(0,180,216,0.15); color: var(--swim); border: 1px solid rgba(0,180,216,0.3); }
+  .tag.bike { background: rgba(255,107,53,0.15); color: var(--bike); border: 1px solid rgba(255,107,53,0.3); }
+  .tag.run { background: rgba(127,255,127,0.15); color: var(--run); border: 1px solid rgba(127,255,127,0.3); }
+  .tag.nutrition { background: rgba(255,200,0,0.15); color: #ffc800; border: 1px solid rgba(255,200,0,0.3); }
+
+  /* RACES */
+  .race-section { padding: 20px; border-bottom: 1px solid var(--border); }
+  .race-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .add-race-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--accent); font-family: 'Space Mono', monospace; font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.2s; }
+  .add-race-btn:hover { border-color: var(--accent); background: rgba(0,229,255,0.08); }
+  .race-form { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; display: none; flex-direction: column; gap: 10px; }
+  .race-form.open { display: flex; }
+  .race-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .race-form input, .race-form select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 12px; padding: 7px 9px; outline: none; transition: border-color 0.2s; }
+  .race-form input:focus, .race-form select:focus { border-color: var(--accent); }
+  .race-form select option { background: var(--bg); }
+  .race-form label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .race-form-actions { display: flex; gap: 8px; }
+  .btn-add-race { flex: 1; background: var(--accent); color: var(--bg); border: none; border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; padding: 8px; cursor: pointer; transition: opacity 0.2s; }
+  .btn-add-race:hover { opacity: 0.85; }
+  .btn-cancel-race { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; padding: 8px 14px; cursor: pointer; }
+  .race-list { display: flex; flex-direction: column; gap: 8px; }
+  .race-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; transition: border-color 0.2s; }
+  .race-card:hover { border-color: var(--muted); }
+  .race-card.priority-a { border-left: 3px solid var(--accent2); }
+  .race-card.priority-b { border-left: 3px solid var(--accent); }
+  .race-card.priority-c { border-left: 3px solid var(--muted); }
+  .race-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .race-name { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .race-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+  .badge { font-family: 'Space Mono', monospace; font-size: 9px; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge.a { background: rgba(255,107,53,0.2); color: var(--accent2); border: 1px solid rgba(255,107,53,0.4); }
+  .badge.b { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.3); }
+  .badge.c { background: rgba(107,122,144,0.2); color: var(--muted); border: 1px solid rgba(107,122,144,0.3); }
+  .race-meta { font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+  .race-countdown { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent3); margin-top: 4px; }
+  .race-countdown.soon { color: var(--accent2); }
+  .race-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; transition: color 0.2s; flex-shrink: 0; }
+  .race-delete:hover { color: #ff4444; }
+  .no-races { font-size: 12px; color: var(--muted); text-align: center; padding: 16px 0; }
+
+  /* TOAST */
+  /* FEELING BUTTONS */
+  .feeling-btn {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--muted); font-size: 12px; padding: 6px 4px;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .feeling-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+  .feeling-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+  /* GRAPH FILTER */
+  .graph-filter-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.2s;
+  }
+  .graph-filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* WORKOUT CARD */
+  .workout-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; margin-bottom: 8px; transition: border-color 0.2s;
+  }
+  .workout-card:hover { border-color: var(--muted); }
+  .workout-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .workout-disc { font-family: "Space Mono", monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .workout-disc.swim { color: var(--swim); }
+  .workout-disc.bike { color: var(--bike); }
+  .workout-disc.run { color: var(--run); }
+  .workout-disc.brick { color: #c084fc; }
+  .workout-disc.other { color: var(--muted); }
+  .workout-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .workout-stat { font-family: "Space Mono", monospace; font-size: 11px; color: var(--muted); }
+  .workout-stat span { color: var(--text); font-weight: 700; }
+  .workout-feeling { font-size: 16px; }
+  .workout-notes { font-size: 12px; color: var(--muted); margin-top: 4px; font-style: italic; }
+  .workout-date { font-family: "Space Mono", monospace; font-size: 10px; color: var(--muted); }
+  .workout-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; transition: color 0.2s; }
+  .workout-delete:hover { color: #ff4444; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; color: var(--text); z-index: 999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-color: var(--accent3); color: var(--accent3); }
+  .toast.error { border-color: #ff6060; color: #ff6060; }
+
+  @media (max-width: 700px) { main { grid-template-columns: 1fr; } aside { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">TRI<span>COACH</span> AI</div>
+    <div class="auth-sub">Your personal triathlon coach</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">ログイン</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">新規登録</button>
+    </div>
+    <div class="auth-field">
+      <label>メールアドレス</label>
+      <input type="email" id="authEmail" placeholder="you@example.com">
+    </div>
+    <div class="auth-field">
+      <label>パスワード</label>
+      <input type="password" id="authPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <button class="auth-btn" id="authBtn" onclick="authSubmit()">ログイン</button>
+    <div class="auth-msg" id="authMsg"></div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="appScreen">
+  <header>
+    <div class="logo">TRI<span>COACH</span> AI</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="setTab(this,'chat')">Chat</button>
+      <button class="nav-tab" onclick="setTab(this,'log')">Log</button>
+    </div>
+    <div class="header-right">
+      <span class="user-email" id="userEmail"></span>
+      <button class="logout-btn" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <main id="mainArea">
+    <aside id="sidebar">
+      <div class="profile-section">
+        <div class="section-label">プロフィール</div>
+        <div class="profile-field"><label>名前</label><input type="text" id="p_name" placeholder="山田 太郎"></div>
+        <div class="profile-field"><label>年齢</label><input type="number" id="p_age" placeholder="35"></div>
+        <div class="profile-field">
+          <label>週の練習可能時間</label>
+          <select id="p_hours">
+            <option value="">選択...</option>
+            <option>5時間以下</option><option>5〜10時間</option>
+            <option>10〜15時間</option><option>15時間以上</option>
+          </select>
+        </div>
+        <div class="profile-field">
+          <label>🏊 スイムペース（100m タイム）</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="text" id="p_swim" placeholder="1:45" style="flex:1">
+            <span style="font-size:11px;color:var(--muted);white-space:nowrap">/100m</span>
+          </div>
+        </div>
+        <div class="profile-field">
+          <label>🚴 バイク FTP</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" id="p_bike" placeholder="220" style="flex:1">
+            <span style="font-size:11px;color:var(--muted);white-space:nowrap">W</span>
+          </div>
+        </div>
+        <div class="profile-field">
+          <label>🏃 ランペース（1km タイム）</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="text" id="p_run" placeholder="5:00" style="flex:1">
+            <span style="font-size:11px;color:var(--muted);white-space:nowrap">/km</span>
+          </div>
+        </div>
+        <div class="profile-field">
+          <label>備考（怪我・苦手な点など）</label>
+          <textarea id="p_notes" placeholder="右膝に不安あり、朝練が基本..."></textarea>
+        </div>
+        <button class="save-btn" onclick="saveProfile()">✓ 保存してAIに反映</button>
+      </div>
+
+      <div class="race-section">
+        <div class="race-section-header">
+          <div class="section-label" style="margin-bottom:0">参加予定レース</div>
+          <button class="add-race-btn" onclick="toggleRaceForm()">＋ 追加</button>
+        </div>
+        <div class="race-form" id="raceForm">
+          <div><label>レース名</label><input type="text" id="rf_name" placeholder="IRONMAN 70.3 Cebu"></div>
+          <div class="race-form-row">
+            <div>
+              <label>種別</label>
+              <select id="rf_type">
+                <option value="">選択...</option>
+                <option>スプリント</option><option>オリンピック</option>
+                <option>70.3 (ミドル)</option><option>IRONMAN</option><option>その他</option>
+              </select>
+            </div>
+            <div>
+              <label>優先度</label>
+              <select id="rf_priority">
+                <option value="A">A（主要目標）</option>
+                <option value="B">B（サブ目標）</option>
+                <option value="C">C（練習）</option>
+              </select>
+            </div>
+          </div>
+          <div class="race-form-row">
+            <div><label>開催日</label><input type="date" id="rf_date"></div>
+            <div><label>場所</label><input type="text" id="rf_location" placeholder="大阪, 日本"></div>
+          </div>
+          <div><label>目標タイム（任意）</label><input type="text" id="rf_goal" placeholder="5:30:00"></div>
+          <div><label>メモ</label><input type="text" id="rf_notes" placeholder="バイクコースはフラット..."></div>
+          <div class="race-form-actions">
+            <button class="btn-add-race" onclick="addRace()">追加</button>
+            <button class="btn-cancel-race" onclick="toggleRaceForm()">キャンセル</button>
+          </div>
+        </div>
+        <div class="race-list" id="raceList">
+          <div class="no-races" id="noRaces">レースはまだ登録されていません</div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="ai-indicator"></div>
+        <span class="chat-title">AI Coach — Claude Powered</span>
+      </div>
+      <div class="quick-prompts">
+        <button class="quick-btn" onclick="quickSend('今週のトレーニングメニューを作って')">📅 今週のメニュー</button>
+        <button class="quick-btn" onclick="quickSend('昨日のワークアウトのフィードバックをお願い')">💬 フィードバック</button>
+        <button class="quick-btn" onclick="quickSend('レースに向けたピーキング計画を立てて')">🏁 ピーキング計画</button>
+        <button class="quick-btn" onclick="quickSend('今週の栄養・食事アドバイスをお願い')">🥗 栄養アドバイス</button>
+        <button class="quick-btn" onclick="quickSend('リカバリー方法を教えて')">🛌 リカバリー</button>
+      </div>
+      <div class="messages" id="messages">
+        <div class="message ai">
+          <div class="avatar ai">AI</div>
+          <div class="bubble">
+            <div class="welcome-card">
+              <div class="welcome-title">TRICOACH AI</div>
+              <div class="welcome-text">
+                トライアスロン専用AIコーチへようこそ。左のプロフィールを設定すると、あなたに最適化されたアドバイスが受けられます。<br><br>
+                <span class="tag swim">🏊 スイム</span><span class="tag bike">🚴 バイク</span><span class="tag run">🏃 ラン</span><span class="tag nutrition">🥗 栄養</span>
+              </div>
+            </div>
+            プロフィールを入力して「保存」するか、上のクイックボタンから始めてください！
+          </div>
+        </div>
+      </div>
+      <div class="input-area">
+        <textarea id="messageInput" placeholder="メッセージを入力..." rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- LOG SCREEN -->
+  <div id="logScreen" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+    <div style="display:grid;grid-template-columns:340px 1fr;height:100%;overflow:hidden;">
+      <!-- LOG FORM -->
+      <div style="background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="section-label" style="margin:0">ワークアウトを記録</div>
+          <button class="add-race-btn" id="stravaBtn" onclick="stravaImport()" style="display:flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+            Stravaから取込
+          </button>
+        </div>
+        <div class="profile-field">
+          <label>日付</label>
+          <input type="date" id="wl_date">
+        </div>
+        <div class="profile-field">
+          <label>種目</label>
+          <select id="wl_discipline">
+            <option value="">選択...</option>
+            <option value="swim">🏊 スイム</option>
+            <option value="bike">🚴 バイク</option>
+            <option value="run">🏃 ラン</option>
+            <option value="brick">🔄 ブリック</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="profile-field" style="margin:0">
+            <label>距離 (km)</label>
+            <input type="number" id="wl_distance" placeholder="10.5" step="0.1">
+          </div>
+          <div class="profile-field" style="margin:0">
+            <label>時間 (分)</label>
+            <input type="number" id="wl_duration" placeholder="60">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="profile-field" style="margin:0">
+            <label>平均ペース / パワー</label>
+            <input type="text" id="wl_pace" placeholder="5:00/km or 200W">
+          </div>
+          <div class="profile-field" style="margin:0">
+            <label>平均心拍</label>
+            <input type="number" id="wl_avg_hr" placeholder="145">
+          </div>
+        </div>
+        <div class="profile-field">
+          <label>最大心拍</label>
+          <input type="number" id="wl_max_hr" placeholder="175">
+        </div>
+        <div class="profile-field">
+          <label>気分・感情 (1=最悪 〜 5=最高)</label>
+          <div style="display:flex;gap:6px;margin-top:4px;" id="feelingBtns">
+            <button class="feeling-btn" data-val="1" onclick="setFeeling(1)">😫 1</button>
+            <button class="feeling-btn" data-val="2" onclick="setFeeling(2)">😕 2</button>
+            <button class="feeling-btn" data-val="3" onclick="setFeeling(3)">😐 3</button>
+            <button class="feeling-btn" data-val="4" onclick="setFeeling(4)">😊 4</button>
+            <button class="feeling-btn" data-val="5" onclick="setFeeling(5)">🔥 5</button>
+          </div>
+        </div>
+        <div class="profile-field">
+          <label>メモ（コンディション・気づきなど）</label>
+          <textarea id="wl_notes" placeholder="暑くて後半ペースダウン。右肩の張りあり..." style="min-height:80px"></textarea>
+        </div>
+        <button class="save-btn" onclick="saveWorkout()">✓ 記録する</button>
+        <button class="save-btn" style="background:var(--accent2);margin-top:4px;" onclick="saveAndFeedback()">✓ 記録 + AIフィードバック</button>
+      </div>
+
+      <!-- LOG LIST + GRAPH -->
+      <div style="display:flex;flex-direction:column;overflow:hidden;">
+        <!-- GRAPH -->
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="section-label" style="margin:0">トレンド</div>
+            <div style="display:flex;gap:4px;">
+              <button class="graph-filter-btn active" onclick="setGraphFilter(this,'all')">全て</button>
+              <button class="graph-filter-btn" onclick="setGraphFilter(this,'swim')">🏊</button>
+              <button class="graph-filter-btn" onclick="setGraphFilter(this,'bike')">🚴</button>
+              <button class="graph-filter-btn" onclick="setGraphFilter(this,'run')">🏃</button>
+            </div>
+          </div>
+          <canvas id="workoutChart" height="100"></canvas>
+        </div>
+
+        <!-- WORKOUT LIST -->
+        <div style="flex:1;overflow-y:auto;padding:16px 20px;" id="workoutList">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="section-label" style="margin:0">ログ一覧</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select id="listFilter" onchange="applyListFilter()" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 8px;outline:none;">
+                <option value="all">全種目</option>
+                <option value="swim">🏊 スイム</option>
+                <option value="bike">🚴 バイク</option>
+                <option value="run">🏃 ラン</option>
+                <option value="brick">🔄 ブリック</option>
+              </select>
+              <button class="graph-filter-btn active" id="sortBtn" onclick="toggleSort()" style="white-space:nowrap;">↓ 新しい順</button>
+            </div>
+          </div>
+          <div id="noWorkouts" style="font-size:12px;color:var(--muted);text-align:center;padding:24px 0;">まだ記録がありません</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://moludiuyuauyftdubmpv.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vbHVkaXV5dWF1eWZ0ZHVibXB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4Nzk3NDQsImV4cCI6MjA4OTQ1NTc0NH0.B2dLeOzBnFotZpP26m-tqk80UydzI4ZQPnLoHoCqR7Y';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: "tricoach-auth", autoRefreshToken: true, persistSession: true } });
+
+  let currentUser = null;
+  let conversationHistory = [];
+  let profile = {};
+  let races = [];
+  let authMode = 'login';
+
+  // ── SESSION CHECK on load ──
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data.session) { currentUser = data.session.user; await enterApp(); }
+  })();
+
+  // ── AUTH ──
+  function switchAuthTab(mode) {
+    authMode = mode;
+    document.querySelectorAll('.auth-tab').forEach((t, i) => {
+      t.classList.toggle('active', (mode === 'login' && i === 0) || (mode === 'signup' && i === 1));
+    });
+    document.getElementById('authBtn').textContent = mode === 'login' ? 'ログイン' : '新規登録';
+    document.getElementById('authMsg').style.display = 'none';
+  }
+
+  async function authSubmit() {
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const btn = document.getElementById('authBtn');
+    const msgEl = document.getElementById('authMsg');
+    if (!email || !password) return;
+    btn.disabled = true; btn.textContent = '処理中...';
+    msgEl.style.display = 'none';
+    try {
+      let result;
+      if (authMode === 'login') {
+        result = await sb.auth.signInWithPassword({ email, password });
+      } else {
+        result = await sb.auth.signUp({ email, password });
+      }
+      if (result.error) throw result.error;
+      if (authMode === 'signup' && !result.data.session) {
+        msgEl.className = 'auth-msg info'; msgEl.style.display = 'block';
+        msgEl.textContent = '確認メールを送信しました。メールのリンクをクリック後、ログインしてください。';
+        btn.disabled = false; btn.textContent = '新規登録'; return;
+      }
+      currentUser = result.data.user;
+      await enterApp();
+    } catch (err) {
+      msgEl.className = 'auth-msg error'; msgEl.style.display = 'block';
+      msgEl.textContent = err.message || 'エラーが発生しました';
+    }
+    btn.disabled = false;
+    btn.textContent = authMode === 'login' ? 'ログイン' : '新規登録';
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+    currentUser = null; profile = {}; races = []; conversationHistory = [];
+    document.getElementById('appScreen').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+  }
+
+  async function enterApp() {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'flex';
+    document.getElementById('userEmail').textContent = currentUser.email;
+    await loadProfile();
+    await loadRaces();
+    await loadWorkouts();
+  }
+
+  // ── PROFILE ──
+  async function loadProfile() {
+    const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (!data) return;
+    profile = { name: data.name||'', age: data.age||'', weeklyHours: data.weekly_hours||'', swimPace: data.swim_pace||'', bikeFTP: data.bike_ftp||'', runPace: data.run_pace||'', notes: data.notes||'' };
+    document.getElementById('p_name').value = profile.name;
+    document.getElementById('p_age').value = profile.age;
+    document.getElementById('p_hours').value = profile.weeklyHours;
+    document.getElementById('p_swim').value = profile.swimPace;
+    document.getElementById('p_bike').value = profile.bikeFTP;
+    document.getElementById('p_run').value = profile.runPace;
+    document.getElementById('p_notes').value = profile.notes;
+  }
+
+  async function saveProfile() {
+    profile = {
+      name: document.getElementById('p_name').value || '未設定',
+      age: document.getElementById('p_age').value || '',
+      weeklyHours: document.getElementById('p_hours').value || '',
+      swimPace: document.getElementById('p_swim').value || '',
+      bikeFTP: document.getElementById('p_bike').value || '',
+      runPace: document.getElementById('p_run').value || '',
+      notes: document.getElementById('p_notes').value || '',
+    };
+    const { error } = await sb.from('profiles').upsert({
+      id: currentUser.id, name: profile.name,
+      age: profile.age ? parseInt(profile.age) : null,
+      weekly_hours: profile.weeklyHours, swim_pace: profile.swimPace,
+      bike_ftp: profile.bikeFTP, run_pace: profile.runPace,
+      notes: profile.notes, updated_at: new Date().toISOString(),
+    });
+    if (error) { showToast('保存に失敗しました', 'error'); return; }
+    showToast('プロフィールを保存しました ✓', 'success');
+    addMessage('ai', `✅ **プロフィールを更新しました！**\n\n**${profile.name}** さん（${profile.age}歳）\n週 ${profile.weeklyHours} の練習\n🏊 ${profile.swimPace}/100m　🚴 FTP ${profile.bikeFTP}W　🏃 ${profile.runPace}/km\n\nこの情報をもとにアドバイスします！`);
+  }
+
+  // ── RACES ──
+  async function loadRaces() {
+    const { data } = await sb.from('races').select('*').eq('user_id', currentUser.id).order('race_date');
+    if (!data) return;
+    races = data.map(r => ({ id: r.id, name: r.name, type: r.type, priority: r.priority, date: r.race_date, location: r.location, goal: r.goal_time, notes: r.notes }));
+    renderRaces();
+  }
+
+  function toggleRaceForm() { document.getElementById('raceForm').classList.toggle('open'); }
+
+  async function addRace() {
+    const name = document.getElementById('rf_name').value.trim();
+    const date = document.getElementById('rf_date').value;
+    if (!name || !date) { showToast('レース名と開催日は必須です', 'error'); return; }
+    const newRace = {
+      user_id: currentUser.id, name, type: document.getElementById('rf_type').value,
+      priority: document.getElementById('rf_priority').value, race_date: date,
+      location: document.getElementById('rf_location').value.trim(),
+      goal_time: document.getElementById('rf_goal').value.trim(),
+      notes: document.getElementById('rf_notes').value.trim(),
+    };
+    const { data, error } = await sb.from('races').insert(newRace).select().single();
+    if (error) { showToast('レースの保存に失敗しました', 'error'); return; }
+    races.push({ ...newRace, id: data.id, date: newRace.race_date, goal: newRace.goal_time });
+    races.sort((a, b) => new Date(a.date) - new Date(b.date));
+    ['rf_name','rf_type','rf_date','rf_location','rf_goal','rf_notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('rf_priority').value = 'A';
+    document.getElementById('raceForm').classList.remove('open');
+    renderRaces();
+    showToast('レースを追加しました ✓', 'success');
+  }
+
+  async function deleteRace(id) {
+    await sb.from('races').delete().eq('id', id);
+    races = races.filter(r => r.id !== id);
+    renderRaces();
+    showToast('レースを削除しました', 'success');
+  }
+
+  function daysUntil(dateStr) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    return Math.round((new Date(dateStr) - today) / 86400000);
+  }
+
+  function renderRaces() {
+    const list = document.getElementById('raceList');
+    list.querySelectorAll('.race-card').forEach(el => el.remove());
+    document.getElementById('noRaces').style.display = races.length === 0 ? 'block' : 'none';
+    races.forEach(race => {
+      const days = daysUntil(race.date);
+      const isPast = days < 0; const isSoon = days >= 0 && days <= 30;
+      const card = document.createElement('div');
+      card.className = `race-card priority-${(race.priority||'b').toLowerCase()}`;
+      if (isPast) card.style.opacity = '0.5';
+      const dateFormatted = race.date ? new Date(race.date + 'T00:00:00').toLocaleDateString('ja-JP', { year:'numeric', month:'short', day:'numeric' }) : '未設定';
+      const countdownText = isPast ? `${Math.abs(days)}日前に終了` : days === 0 ? '🔥 今日！' : `📅 あと ${days} 日`;
+      card.innerHTML = `
+        <div class="race-card-top">
+          <div class="race-name">${race.name}</div>
+          <button class="race-delete" onclick="deleteRace(${race.id})">✕</button>
+        </div>
+        <div class="race-badges">
+          <span class="badge ${(race.priority||'b').toLowerCase()}">${race.priority||'B'} RACE</span>
+          ${race.type ? `<span class="badge b">${race.type}</span>` : ''}
+        </div>
+        <div class="race-meta">
+          <span>📆 ${dateFormatted}</span>
+          ${race.location ? `<span>📍 ${race.location}</span>` : ''}
+          ${race.goal ? `<span>🎯 目標: ${race.goal}</span>` : ''}
+          ${race.notes ? `<span>📝 ${race.notes}</span>` : ''}
+        </div>
+        <div class="race-countdown ${isSoon ? 'soon' : ''}">${countdownText}</div>`;
+      list.appendChild(card);
+    });
+  }
+
+  // ── CHAT ──
+  function buildSystemPrompt() {
+    const p = profile;
+    const profileStr = Object.keys(p).length > 0
+      ? `\n\n## アスリートプロフィール\n- 名前: ${p.name}\n- 年齢: ${p.age}\n- 週の練習時間: ${p.weeklyHours}\n- スイムペース: ${p.swimPace}/100m\n- バイクFTP: ${p.bikeFTP}W\n- ランペース: ${p.runPace}/km\n- 備考: ${p.notes}` : '';
+    const racesStr = races.length > 0
+      ? `\n\n## 参加予定レース\n` + races.map(r => `- [${r.priority}レース] ${r.name} (${r.type||'種別未設定'}) / ${r.date} (あと${daysUntil(r.date)}日) / 場所: ${r.location||'未設定'} / 目標タイム: ${r.goal||'未設定'}`).join('\n') : '';
+    return `あなたはプロのトライアスロンコーチです。スイム・バイク・ランの3種目に精通し、トレーニング計画、レース戦略、栄養管理、リカバリーについて専門的なアドバイスができます。日本語で回答してください。簡潔かつ実践的なアドバイスを心がけ、具体的な数値（ペース、距離、強度）を含めてください。${profileStr}${racesStr}${buildWorkoutContext()}`;
+  }
+
+  function addMessage(role, text) {
+    const messagesDiv = document.getElementById('messages');
+    const div = document.createElement('div'); div.className = `message ${role}`;
+    const avatar = document.createElement('div'); avatar.className = `avatar ${role}`; avatar.textContent = role === 'ai' ? 'AI' : 'ME';
+    const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.innerHTML = formatText(text);
+    div.appendChild(avatar); div.appendChild(bubble);
+    messagesDiv.appendChild(div); messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    return div;
+  }
+
+  function formatText(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^### (.*)/gm, '<h3>$1</h3>')
+      .replace(/^- (.*)/gm, '<li>$1</li>')
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function showTyping() {
+    const div = document.createElement('div'); div.className = 'message ai'; div.id = 'typingIndicator';
+    const a = document.createElement('div'); a.className = 'avatar ai'; a.textContent = 'AI';
+    const b = document.createElement('div'); b.className = 'bubble';
+    b.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    div.appendChild(a); div.appendChild(b);
+    const m = document.getElementById('messages'); m.appendChild(div); m.scrollTop = m.scrollHeight;
+  }
+  function removeTyping() { document.getElementById('typingIndicator')?.remove(); }
+
+  async function sendMessage(text) {
+    const input = document.getElementById('messageInput');
+    const msg = text || input.value.trim();
+    if (!msg) return;
+    input.value = ''; input.style.height = 'auto';
+    addMessage('user', msg);
+    conversationHistory.push({ role: 'user', content: msg });
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true; showTyping();
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: buildSystemPrompt(), messages: conversationHistory })
+      });
+      const data = await response.json();
+      const reply = data.content?.[0]?.text || 'エラーが発生しました。';
+      removeTyping(); addMessage('ai', reply);
+      conversationHistory.push({ role: 'assistant', content: reply });
+    } catch (err) {
+      removeTyping(); addMessage('ai', '⚠️ APIエラーが発生しました。');
+    }
+    sendBtn.disabled = false;
+  }
+
+  function quickSend(text) { document.getElementById('messageInput').value = text; sendMessage(text); }
+  function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+  function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+  // ── WORKOUT LOG ──
+  let workouts = [];
+  const STRAVA_CLIENT_ID = '213639';
+  const STRAVA_CLIENT_SECRET = '4c3c2ae8e4e338528d41c72a0fce00e1d64e987d';
+  let stravaTokens = JSON.parse(localStorage.getItem('strava_tokens') || 'null');
+  let selectedFeeling = null;
+  let workoutChart = null;
+  let graphFilter = 'all';
+
+  // Set today as default date
+  function initWorkoutDate() {
+    const d = document.getElementById('wl_date');
+    if (d) d.value = new Date().toISOString().split('T')[0];
+  }
+
+  function setFeeling(val) {
+    selectedFeeling = val;
+    document.querySelectorAll('.feeling-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.val) === val);
+    });
+  }
+
+  function setGraphFilter(btn, filter) {
+    graphFilter = filter;
+    document.querySelectorAll('.graph-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderChart();
+  }
+
+  async function loadWorkouts() {
+    const { data } = await sb.from('workouts').select('*').eq('user_id', currentUser.id).order('workout_date', { ascending: false });
+    if (!data) return;
+    workouts = data;
+    renderWorkoutList();
+    renderChart();
+  }
+
+  async function saveWorkout() {
+    const date = document.getElementById('wl_date').value;
+    const discipline = document.getElementById('wl_discipline').value;
+    if (!date || !discipline) { showToast('日付と種目は必須です', 'error'); return; }
+
+    const w = {
+      user_id: currentUser.id,
+      workout_date: date,
+      discipline,
+      duration_min: parseInt(document.getElementById('wl_duration').value) || null,
+      distance_km: parseFloat(document.getElementById('wl_distance').value) || null,
+      avg_pace: document.getElementById('wl_pace').value || null,
+      avg_hr: parseInt(document.getElementById('wl_avg_hr').value) || null,
+      max_hr: parseInt(document.getElementById('wl_max_hr').value) || null,
+      feeling: selectedFeeling,
+      notes: document.getElementById('wl_notes').value || null,
+    };
+
+    const { data, error } = await sb.from('workouts').insert(w).select().single();
+    if (error) { showToast('保存に失敗しました', 'error'); return; }
+
+    workouts.unshift({ ...w, id: data.id });
+    renderWorkoutList();
+    renderChart();
+    clearWorkoutForm();
+    showToast('ワークアウトを記録しました ✓', 'success');
+    return w;
+  }
+
+  async function saveAndFeedback() {
+    const w = await saveWorkout();
+    if (!w) return;
+    const discMap = { swim:'スイム', bike:'バイク', run:'ラン', brick:'ブリック', other:'その他' };
+    const feelingMap = { 1:'最悪', 2:'悪い', 3:'普通', 4:'良い', 5:'最高' };
+    const msg = `今日のワークアウトのフィードバックをお願いします。
+種目: ${discMap[w.discipline]}
+距離: ${w.distance_km||'未入力'}km
+時間: ${w.duration_min||'未入力'}分
+ペース/パワー: ${w.avg_pace||'未入力'}
+平均心拍: ${w.avg_hr||'未入力'}
+最大心拍: ${w.max_hr||'未入力'}
+気分: ${w.feeling ? feelingMap[w.feeling] : '未入力'}
+メモ: ${w.notes||'なし'}`;
+    setTab(document.querySelector('.nav-tab'), 'chat');
+    quickSend(msg);
+  }
+
+  async function deleteWorkout(id) {
+    await sb.from('workouts').delete().eq('id', id);
+    workouts = workouts.filter(w => w.id !== id);
+    renderWorkoutList();
+    renderChart();
+    showToast('削除しました', 'success');
+  }
+
+  function clearWorkoutForm() {
+    ['wl_distance','wl_duration','wl_pace','wl_avg_hr','wl_max_hr','wl_notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('wl_discipline').value = '';
+    selectedFeeling = null;
+    document.querySelectorAll('.feeling-btn').forEach(b => b.classList.remove('active'));
+    initWorkoutDate();
+  }
+
+  function feelingEmoji(val) {
+    return ['','😫','😕','😐','😊','🔥'][val] || '';
+  }
+
+  function discLabel(d) {
+    return { swim:'🏊 スイム', bike:'🚴 バイク', run:'🏃 ラン', brick:'🔄 ブリック', other:'その他' }[d] || d;
+  }
+
+  function renderWorkoutList() {
+    const list = document.getElementById('workoutList');
+    list.querySelectorAll('.workout-card').forEach(el => el.remove());
+
+    let filtered = listDisciplineFilter === 'all' ? [...workouts] : workouts.filter(w => w.discipline === listDisciplineFilter);
+    filtered.sort((a, b) => {
+      const diff = new Date(a.workout_date) - new Date(b.workout_date);
+      return listSortAsc ? diff : -diff;
+    });
+
+    document.getElementById('noWorkouts').style.display = filtered.length === 0 ? 'block' : 'none';
+
+    filtered.forEach(w => {
+      const card = document.createElement('div');
+      card.className = 'workout-card';
+      const dateStr = w.workout_date ? new Date(w.workout_date + 'T00:00:00').toLocaleDateString('ja-JP', { month:'short', day:'numeric', weekday:'short' }) : '';
+      card.innerHTML = `
+        <div class="workout-card-top">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="workout-disc ${w.discipline}">${discLabel(w.discipline)}</span>
+            <span class="workout-date">${dateStr}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="workout-feeling">${feelingEmoji(w.feeling)}</span>
+            <button class="workout-delete" onclick="deleteWorkout(${w.id})">✕</button>
+          </div>
+        </div>
+        <div class="workout-stats">
+          ${w.distance_km ? `<div class="workout-stat">距離 <span>${w.distance_km}km</span></div>` : ''}
+          ${w.duration_min ? `<div class="workout-stat">時間 <span>${w.duration_min}分</span></div>` : ''}
+          ${w.avg_pace ? `<div class="workout-stat">ペース/W <span>${w.avg_pace}</span></div>` : ''}
+          ${w.avg_hr ? `<div class="workout-stat">平均心拍 <span>${w.avg_hr}</span></div>` : ''}
+          ${w.max_hr ? `<div class="workout-stat">最大心拍 <span>${w.max_hr}</span></div>` : ''}
+        </div>
+        ${w.notes ? `<div class="workout-notes">${w.notes}</div>` : ''}`;
+      list.appendChild(card);
+    });
+  }
+
+  function renderChart() {
+    const filtered = graphFilter === 'all' ? workouts : workouts.filter(w => w.discipline === graphFilter);
+    const sorted = [...filtered].sort((a, b) => new Date(a.workout_date) - new Date(b.workout_date)).slice(-20);
+
+    const labels = sorted.map(w => new Date(w.workout_date + 'T00:00:00').toLocaleDateString('ja-JP', { month:'short', day:'numeric' }));
+    const distData = sorted.map(w => w.distance_km || 0);
+    const hrData = sorted.map(w => w.avg_hr || null);
+    const feelingData = sorted.map(w => w.feeling || null);
+
+    const ctx = document.getElementById('workoutChart').getContext('2d');
+    if (workoutChart) workoutChart.destroy();
+
+    workoutChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '距離 (km)',
+            data: distData,
+            backgroundColor: 'rgba(0,229,255,0.3)',
+            borderColor: 'rgba(0,229,255,0.8)',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y',
+          },
+          {
+            label: '平均心拍',
+            data: hrData,
+            type: 'line',
+            borderColor: 'rgba(255,107,53,0.8)',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: 'rgba(255,107,53,0.8)',
+            pointRadius: 3,
+            tension: 0.3,
+            yAxisID: 'y1',
+          },
+          {
+            label: '気分',
+            data: feelingData,
+            type: 'line',
+            borderColor: 'rgba(127,255,127,0.8)',
+            backgroundColor: 'transparent',
+            pointBackgroundColor: 'rgba(127,255,127,0.8)',
+            pointRadius: 3,
+            tension: 0.3,
+            yAxisID: 'y2',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { labels: { color: '#6b7a90', font: { size: 10 } } } },
+        scales: {
+          x: { ticks: { color: '#6b7a90', font: { size: 9 } }, grid: { color: 'rgba(42,48,64,0.5)' } },
+          y: { ticks: { color: '#6b7a90', font: { size: 9 } }, grid: { color: 'rgba(42,48,64,0.5)' }, position: 'left' },
+          y1: { ticks: { color: 'rgba(255,107,53,0.7)', font: { size: 9 } }, grid: { display: false }, position: 'right', min: 60, max: 200 },
+          y2: { display: false, min: 0, max: 5 },
+        }
+      }
+    });
+  }
+
+  function buildWorkoutContext() {
+    if (workouts.length === 0) return '';
+    const recent = workouts.slice(0, 10);
+    const discMap = { swim:'スイム', bike:'バイク', run:'ラン', brick:'ブリック', other:'その他' };
+    return '\n\n## 直近のワークアウトログ\n' + recent.map(w =>
+      `- ${w.workout_date} ${discMap[w.discipline]||w.discipline}: ${w.distance_km||'-'}km / ${w.duration_min||'-'}分 / ペース:${w.avg_pace||'-'} / 心拍:${w.avg_hr||'-'} / 気分:${w.feeling||'-'}/5 / メモ:${w.notes||'なし'}`
+    ).join('\n');
+  }
+
+  function setTab(btn, tab) {
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const mainArea = document.getElementById('mainArea');
+    const logScreen = document.getElementById('logScreen');
+    if (tab === 'log') {
+      mainArea.style.display = 'none';
+      logScreen.style.display = 'flex';
+      initWorkoutDate();
+      renderChart();
+    } else {
+      mainArea.style.display = 'grid';
+      logScreen.style.display = 'none';
+    }
+  }
+
+  let listSortAsc = false;
+  let listDisciplineFilter = 'all';
+
+  function toggleSort() {
+    listSortAsc = !listSortAsc;
+    const btn = document.getElementById('sortBtn');
+    btn.textContent = listSortAsc ? '↑ 古い順' : '↓ 新しい順';
+    renderWorkoutList();
+  }
+
+  function applyListFilter() {
+    listDisciplineFilter = document.getElementById('listFilter').value;
+    renderWorkoutList();
+  }
+
+  // ── STRAVA ──
+  async function stravaRefreshToken() {
+    if (!stravaTokens) return null;
+    if (stravaTokens.expires_at * 1000 > Date.now()) return stravaTokens.access_token;
+    try {
+      const res = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: STRAVA_CLIENT_ID,
+          client_secret: STRAVA_CLIENT_SECRET,
+          refresh_token: stravaTokens.refresh_token,
+          grant_type: 'refresh_token'
+        })
+      });
+      const data = await res.json();
+      stravaTokens = { access_token: data.access_token, refresh_token: data.refresh_token, expires_at: data.expires_at };
+      localStorage.setItem('strava_tokens', JSON.stringify(stravaTokens));
+      return stravaTokens.access_token;
+    } catch { return null; }
+  }
+
+  async function stravaImport() {
+    // First time: need to authorize
+    if (!stravaTokens) {
+      const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=http://localhost:3000/triathlon-coach.html&approval_prompt=auto&scope=activity:read_all`;
+      window.location.href = url;
+      return;
+    }
+
+    const btn = document.getElementById('stravaBtn');
+    btn.textContent = '取込中...';
+    btn.disabled = true;
+
+    try {
+      const token = await stravaRefreshToken();
+      if (!token) { showToast('Strava認証が必要です', 'error'); btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Stravaから取込'; btn.disabled = false; return; }
+
+      const res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=20', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const activities = await res.json();
+
+      const discMap = { Run: 'run', Ride: 'bike', VirtualRide: 'bike', Swim: 'swim', VirtualRun: 'run' };
+      let imported = 0;
+
+      for (const act of activities) {
+        const discipline = discMap[act.type];
+        if (!discipline) continue;
+
+        const date = act.start_date_local.split('T')[0];
+        // Skip if already exists
+        const exists = workouts.some(w => w.strava_id == act.id);
+        if (exists) continue;
+
+        const w = {
+          user_id: currentUser.id,
+          workout_date: date,
+          discipline,
+          duration_min: Math.round(act.moving_time / 60),
+          distance_km: Math.round(act.distance / 10) / 100,
+          avg_pace: discipline === 'bike'
+            ? (act.average_watts ? `${Math.round(act.average_watts)}W` : null)
+            : act.average_speed > 0
+              ? (() => { const secPerKm = 1000 / act.average_speed; const m = Math.floor(secPerKm/60); const s = Math.round(secPerKm%60); return `${m}:${s.toString().padStart(2,'0')}/km`; })()
+              : null,
+          avg_hr: act.average_heartrate ? Math.round(act.average_heartrate) : null,
+          max_hr: act.max_heartrate ? Math.round(act.max_heartrate) : null,
+          notes: `[Strava] ${act.name}`,
+          strava_id: act.id,
+        };
+
+        const { error } = await sb.from('workouts').insert(w);
+        if (!error) { workouts.unshift(w); imported++; }
+      }
+
+      renderWorkoutList();
+      renderChart();
+      showToast(`${imported}件のワークアウトを取込みました ✓`, 'success');
+    } catch (err) {
+      showToast('取込に失敗しました', 'error');
+    }
+
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg> Stravaから取込';
+    btn.disabled = false;
+  }
+
+  // Handle Strava OAuth callback
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code && !stravaTokens) {
+      try {
+        const res = await fetch('https://www.strava.com/oauth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: STRAVA_CLIENT_ID,
+            client_secret: STRAVA_CLIENT_SECRET,
+            code,
+            grant_type: 'authorization_code'
+          })
+        });
+        const data = await res.json();
+        stravaTokens = { access_token: data.access_token, refresh_token: data.refresh_token, expires_at: data.expires_at };
+        localStorage.setItem('strava_tokens', JSON.stringify(stravaTokens));
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch {}
+    }
+  })();
+
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
