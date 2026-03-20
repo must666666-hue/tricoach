@@ -228,6 +228,36 @@
   .upload-zone-text { font-size: 13px; color: var(--muted); }
   .upload-zone-sub { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'Space Mono', monospace; }
 
+  /* ANALYTICS */
+  .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; overflow-y: auto; }
+  .analytics-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .analytics-card.full { grid-column: 1 / -1; }
+  .analytics-card-title { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 14px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 12px; color: var(--muted); }
+  .stat-value { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.accent2 { color: var(--accent2); }
+  .stat-value.accent3 { color: var(--accent3); }
+  .disc-balance { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 10px 0; }
+  .disc-balance-swim { background: var(--swim); }
+  .disc-balance-bike { background: var(--bike); }
+  .disc-balance-run { background: var(--run); }
+  .disc-legend { display: flex; gap: 12px; }
+  .disc-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .disc-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .zone-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .zone-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 50px; flex-shrink: 0; }
+  .zone-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .zone-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  .zone-pct { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); width: 35px; text-align: right; flex-shrink: 0; }
+  .period-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+  .period-tab { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 10px; padding: 4px 10px; cursor: pointer; transition: all 0.2s; }
+  .period-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .ai-insight { background: rgba(0,229,255,0.05); border: 1px solid rgba(0,229,255,0.2); border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .ai-insight strong { color: var(--accent); }
+
   .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; color: var(--text); z-index: 999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateY(0); }
   .toast.success { border-color: var(--accent3); color: var(--accent3); }
@@ -267,6 +297,7 @@
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="setTab(this,'chat')">Chat</button>
       <button class="nav-tab" onclick="setTab(this,'log')">Log</button>
+      <button class="nav-tab" onclick="setTab(this,'analytics')">分析</button>
       <button class="nav-tab" onclick="setTab(this,'wellness')">Wellness</button>
     </div>
     <div class="header-right">
@@ -499,6 +530,22 @@
           <div id="noWorkouts" style="font-size:12px;color:var(--muted);text-align:center;padding:24px 0;">まだ記録がありません</div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS SCREEN -->
+  <div id="analyticsScreen" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div class="section-label" style="margin:0">トレーニング分析</div>
+      <div class="period-tabs">
+        <button class="period-tab active" onclick="setPeriod(this,4)">4週</button>
+        <button class="period-tab" onclick="setPeriod(this,8)">8週</button>
+        <button class="period-tab" onclick="setPeriod(this,12)">12週</button>
+        <button class="period-tab" onclick="setPeriod(this,52)">1年</button>
+      </div>
+    </div>
+    <div class="analytics-grid" id="analyticsGrid">
+      <!-- Cards rendered by JS -->
     </div>
   </div>
 
@@ -1039,14 +1086,19 @@
     btn.classList.add('active');
     const mainArea = document.getElementById('mainArea');
     const logScreen = document.getElementById('logScreen');
+    const analyticsScreen = document.getElementById('analyticsScreen');
     const wellnessScreen = document.getElementById('wellnessScreen');
     mainArea.style.display = 'none';
     logScreen.style.display = 'none';
+    analyticsScreen.style.display = 'none';
     wellnessScreen.style.display = 'none';
     if (tab === 'log') {
       logScreen.style.display = 'flex';
       initWorkoutDate();
       renderChart();
+    } else if (tab === 'analytics') {
+      analyticsScreen.style.display = 'flex';
+      renderAnalytics();
     } else if (tab === 'wellness') {
       wellnessScreen.style.display = 'flex';
       renderWellnessChart();
@@ -1181,6 +1233,205 @@
       } catch {}
     }
   })();
+
+  // ── ANALYTICS ──
+  let analyticsPeriodWeeks = 4;
+
+  function setPeriod(btn, weeks) {
+    analyticsPeriodWeeks = weeks;
+    document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAnalytics();
+  }
+
+  function getFilteredWorkouts(weeks) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - weeks * 7);
+    return workouts.filter(w => new Date(w.workout_date) >= cutoff);
+  }
+
+  function renderAnalytics() {
+    const grid = document.getElementById('analyticsGrid');
+    if (!grid) return;
+    const data = getFilteredWorkouts(analyticsPeriodWeeks);
+    grid.innerHTML = '';
+
+    if (data.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px;font-size:13px;">データがありません。Stravaからログを取り込んでください。</div>';
+      return;
+    }
+
+    // 1. サマリーカード
+    const swimData = data.filter(w => w.discipline === 'swim');
+    const bikeData = data.filter(w => w.discipline === 'bike');
+    const runData = data.filter(w => w.discipline === 'run');
+    const totalDist = data.reduce((s, w) => s + (w.distance_km || 0), 0);
+    const totalTime = data.reduce((s, w) => s + (w.duration_min || 0), 0);
+    const swimDist = swimData.reduce((s, w) => s + (w.distance_km || 0), 0);
+    const bikeDist = bikeData.reduce((s, w) => s + (w.distance_km || 0), 0);
+    const runDist = runData.reduce((s, w) => s + (w.distance_km || 0), 0);
+
+    const summaryCard = document.createElement('div');
+    summaryCard.className = 'analytics-card';
+    summaryCard.innerHTML = `
+      <div class="analytics-card-title">📊 期間サマリー（${analyticsPeriodWeeks}週間）</div>
+      <div class="stat-row"><span class="stat-label">総距離</span><span class="stat-value accent">${totalDist.toFixed(1)} km</span></div>
+      <div class="stat-row"><span class="stat-label">総時間</span><span class="stat-value">${Math.floor(totalTime/60)}h ${totalTime%60}m</span></div>
+      <div class="stat-row"><span class="stat-label">セッション数</span><span class="stat-value">${data.length} 回</span></div>
+      <div class="stat-row"><span class="stat-label">週平均距離</span><span class="stat-value accent3">${(totalDist/analyticsPeriodWeeks).toFixed(1)} km</span></div>
+      <div class="stat-row"><span class="stat-label">週平均時間</span><span class="stat-value">${Math.floor(totalTime/analyticsPeriodWeeks/60)}h ${Math.round(totalTime/analyticsPeriodWeeks%60)}m</span></div>`;
+    grid.appendChild(summaryCard);
+
+    // 2. 種目バランス
+    const balanceCard = document.createElement('div');
+    balanceCard.className = 'analytics-card';
+    const total3 = swimDist + bikeDist + runDist || 1;
+    const swimPct = Math.round(swimDist / total3 * 100);
+    const bikePct = Math.round(bikeDist / total3 * 100);
+    const runPct = 100 - swimPct - bikePct;
+    balanceCard.innerHTML = `
+      <div class="analytics-card-title">🔄 種目バランス</div>
+      <div class="disc-balance">
+        <div class="disc-balance-swim" style="width:${swimPct}%"></div>
+        <div class="disc-balance-bike" style="width:${bikePct}%"></div>
+        <div class="disc-balance-run" style="width:${runPct}%"></div>
+      </div>
+      <div class="disc-legend">
+        <div class="disc-legend-item"><div class="disc-legend-dot" style="background:var(--swim)"></div>🏊 ${swimPct}% (${swimDist.toFixed(1)}km)</div>
+        <div class="disc-legend-item"><div class="disc-legend-dot" style="background:var(--bike)"></div>🚴 ${bikePct}% (${bikeDist.toFixed(1)}km)</div>
+        <div class="disc-legend-item"><div class="disc-legend-dot" style="background:var(--run)"></div>🏃 ${runPct}% (${runDist.toFixed(1)}km)</div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="stat-row"><span class="stat-label">🏊 セッション</span><span class="stat-value" style="color:var(--swim)">${swimData.length}回</span></div>
+        <div class="stat-row"><span class="stat-label">🚴 セッション</span><span class="stat-value" style="color:var(--bike)">${bikeData.length}回</span></div>
+        <div class="stat-row"><span class="stat-label">🏃 セッション</span><span class="stat-value" style="color:var(--run)">${runData.length}回</span></div>
+      </div>`;
+    grid.appendChild(balanceCard);
+
+    // 3. 心拍ゾーン推定
+    const zoneCard = document.createElement('div');
+    zoneCard.className = 'analytics-card';
+    const maxHR = 220 - (profile.age || 40);
+    const zoneBounds = [0, 0.6, 0.7, 0.8, 0.9, 1.0];
+    const zoneNames = ['Z1 回復', 'Z2 有酸素', 'Z3 テンポ', 'Z4 閾値', 'Z5 最大'];
+    const zoneColors = ['#4ade80','#60a5fa','#fbbf24','#f97316','#ef4444'];
+    const zoneCounts = [0,0,0,0,0];
+    const hrData = data.filter(w => w.avg_hr);
+    hrData.forEach(w => {
+      const pct = w.avg_hr / maxHR;
+      for (let i = 4; i >= 0; i--) {
+        if (pct >= zoneBounds[i]) { zoneCounts[i]++; break; }
+      }
+    });
+    const totalZone = hrData.length || 1;
+    zoneCard.innerHTML = `
+      <div class="analytics-card-title">❤️ 心拍ゾーン分布（推定）</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;">最大心拍数 ${maxHR} bpm 基準</div>
+      ${zoneNames.map((name, i) => `
+        <div class="zone-bar">
+          <div class="zone-label">${name}</div>
+          <div class="zone-track"><div class="zone-fill" style="width:${Math.round(zoneCounts[i]/totalZone*100)}%;background:${zoneColors[i]}"></div></div>
+          <div class="zone-pct">${Math.round(zoneCounts[i]/totalZone*100)}%</div>
+        </div>`).join('')}`;
+    grid.appendChild(zoneCard);
+
+    // 4. 疲労度トレンド
+    const fatigueCard = document.createElement('div');
+    fatigueCard.className = 'analytics-card';
+    const feelingData = data.filter(w => w.feeling).sort((a,b) => new Date(a.workout_date)-new Date(b.workout_date));
+    const avgFeeling = feelingData.length > 0 ? (feelingData.reduce((s,w) => s+w.feeling,0)/feelingData.length).toFixed(1) : '-';
+    const recentFeeling = feelingData.slice(-7);
+    const recentAvg = recentFeeling.length > 0 ? (recentFeeling.reduce((s,w) => s+w.feeling,0)/recentFeeling.length).toFixed(1) : '-';
+    const feelingTrend = recentAvg > avgFeeling ? '↑ 改善中' : recentAvg < avgFeeling ? '↓ 低下気味' : '→ 安定';
+    const feelingColor = recentAvg >= 4 ? 'var(--accent3)' : recentAvg >= 3 ? '#ffc800' : '#ff6060';
+    fatigueCard.innerHTML = `
+      <div class="analytics-card-title">😊 コンディション推移</div>
+      <div class="stat-row"><span class="stat-label">期間平均気分</span><span class="stat-value">${avgFeeling} / 5</span></div>
+      <div class="stat-row"><span class="stat-label">直近7回の平均</span><span class="stat-value" style="color:${feelingColor}">${recentAvg} / 5</span></div>
+      <div class="stat-row"><span class="stat-label">トレンド</span><span class="stat-value" style="color:${feelingColor}">${feelingTrend}</span></div>
+      <canvas id="feelingChart" height="80" style="margin-top:12px;"></canvas>`;
+    grid.appendChild(fatigueCard);
+
+    // 5. 週間トレーニング量推移（フル幅）
+    const weeklyCard = document.createElement('div');
+    weeklyCard.className = 'analytics-card full';
+    weeklyCard.innerHTML = `
+      <div class="analytics-card-title">📈 週間トレーニング量推移</div>
+      <canvas id="weeklyChart" height="80"></canvas>`;
+    grid.appendChild(weeklyCard);
+
+    // 6. ペース・パワートレンド
+    const paceCard = document.createElement('div');
+    paceCard.className = 'analytics-card full';
+    paceCard.innerHTML = `
+      <div class="analytics-card-title">⚡ ペース・パワートレンド</div>
+      <canvas id="paceChart" height="80"></canvas>`;
+    grid.appendChild(paceCard);
+
+    // Render charts after DOM update
+    setTimeout(() => {
+      // Feeling chart
+      const feelingCtx = document.getElementById('feelingChart')?.getContext('2d');
+      if (feelingCtx && feelingData.length > 0) {
+        new Chart(feelingCtx, {
+          type: 'line',
+          data: {
+            labels: feelingData.map(w => new Date(w.workout_date+'T00:00:00').toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+            datasets: [{ data: feelingData.map(w => w.feeling), borderColor: 'rgba(127,255,127,0.8)', backgroundColor: 'rgba(127,255,127,0.1)', pointRadius: 3, tension: 0.3, fill: true }]
+          },
+          options: { responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#6b7a90',font:{size:8}},grid:{color:'rgba(42,48,64,0.5)'}}, y:{min:0,max:5,ticks:{color:'#6b7a90',font:{size:8}},grid:{color:'rgba(42,48,64,0.5)'}} } }
+        });
+      }
+
+      // Weekly volume chart
+      const weeklyCtx = document.getElementById('weeklyChart')?.getContext('2d');
+      if (weeklyCtx) {
+        const weeks = {};
+        data.forEach(w => {
+          const d = new Date(w.workout_date+'T00:00:00');
+          d.setDate(d.getDate() - d.getDay());
+          const key = d.toLocaleDateString('ja-JP',{month:'short',day:'numeric'});
+          if (!weeks[key]) weeks[key] = {swim:0,bike:0,run:0};
+          if (w.discipline === 'swim') weeks[key].swim += w.distance_km||0;
+          else if (w.discipline === 'bike') weeks[key].bike += w.distance_km||0;
+          else if (w.discipline === 'run') weeks[key].run += w.distance_km||0;
+        });
+        const wLabels = Object.keys(weeks).slice(-analyticsPeriodWeeks);
+        new Chart(weeklyCtx, {
+          type: 'bar',
+          data: {
+            labels: wLabels,
+            datasets: [
+              { label:'🏊 スイム', data: wLabels.map(k => +weeks[k]?.swim.toFixed(1)||0), backgroundColor:'rgba(0,180,216,0.6)', stack:'s' },
+              { label:'🚴 バイク', data: wLabels.map(k => +weeks[k]?.bike.toFixed(1)||0), backgroundColor:'rgba(255,107,53,0.6)', stack:'s' },
+              { label:'🏃 ラン', data: wLabels.map(k => +weeks[k]?.run.toFixed(1)||0), backgroundColor:'rgba(127,255,127,0.6)', stack:'s' },
+            ]
+          },
+          options: { responsive:true, plugins:{legend:{labels:{color:'#6b7a90',font:{size:10}}}}, scales:{ x:{stacked:true,ticks:{color:'#6b7a90',font:{size:9}},grid:{color:'rgba(42,48,64,0.5)'}}, y:{stacked:true,ticks:{color:'#6b7a90',font:{size:9}},grid:{color:'rgba(42,48,64,0.5)'}} } }
+        });
+      }
+
+      // Pace/Power trend chart
+      const paceCtx = document.getElementById('paceChart')?.getContext('2d');
+      if (paceCtx) {
+        const bikeWithPower = bikeData.filter(w => w.avg_pace && w.avg_pace.includes('W')).sort((a,b)=>new Date(a.workout_date)-new Date(b.workout_date));
+        const runWithPace = runData.filter(w => w.avg_pace && w.avg_pace.includes('km')).sort((a,b)=>new Date(a.workout_date)-new Date(b.workout_date));
+        const parseRunPace = p => { const m = p.match(/(\d+):(\d+)/); return m ? parseInt(m[1])*60+parseInt(m[2]) : null; };
+        const parsePower = p => { const m = p.match(/(\d+)/); return m ? parseInt(m[1]) : null; };
+        new Chart(paceCtx, {
+          type: 'line',
+          data: {
+            labels: [...new Set([...bikeWithPower.map(w=>w.workout_date),...runWithPace.map(w=>w.workout_date)].sort())].map(d => new Date(d+'T00:00:00').toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+            datasets: [
+              { label:'🚴 パワー(W)', data: bikeWithPower.map(w=>parsePower(w.avg_pace)), borderColor:'rgba(255,107,53,0.8)', backgroundColor:'transparent', pointRadius:3, tension:0.3, yAxisID:'y' },
+              { label:'🏃 ペース(秒/km)', data: runWithPace.map(w=>parseRunPace(w.avg_pace)), borderColor:'rgba(127,255,127,0.8)', backgroundColor:'transparent', pointRadius:3, tension:0.3, yAxisID:'y1' },
+            ]
+          },
+          options: { responsive:true, plugins:{legend:{labels:{color:'#6b7a90',font:{size:10}}}}, scales:{ x:{ticks:{color:'#6b7a90',font:{size:9}},grid:{color:'rgba(42,48,64,0.5)'}}, y:{ticks:{color:'rgba(255,107,53,0.7)',font:{size:9}},grid:{display:false},position:'left'}, y1:{ticks:{color:'rgba(127,255,127,0.7)',font:{size:9}},grid:{display:false},position:'right'} } }
+        });
+      }
+    }, 100);
+  }
 
   // ── WELLNESS ──
   let wellnessData = [];
